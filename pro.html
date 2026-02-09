@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Machakos University Study Zone</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin:0; padding:0;
+            background: linear-gradient(135deg, #fbc2eb, #a6c1ee);
+            min-height: 100vh;
+        }
+        .navbar {
+            background: #0d6efd;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 {margin: 0; font-size: 22px;}
+        .navbar button {padding: 6px 12px; background: white; color: #0d6efd; border: none; border-radius: 5px; cursor: pointer;}
+        .navbar button:hover {background: #ccc;}
+
+        /* LOGIN/REGISTER */
+        .container {display: flex; justify-content: center; align-items: center; min-height: 90vh;}
+        .card {background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 350px; text-align: center;}
+        input, textarea {width: 90%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc;}
+        button.submitBtn {width: 95%; padding: 10px; background: #0d6efd; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;}
+        button.submitBtn:hover {background: #084298;}
+        .hidden { display: none; }
+
+        /* DASHBOARD LAYOUT */
+        #dashboard {display: flex; flex-direction: column; align-items: center; padding: 20px;}
+        .welcome {background: white; padding: 15px; width: 90%; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.1); margin-bottom: 15px; text-align: center;}
+        .search-card {background:white; width:90%; padding:15px; border-radius:10px; box-shadow:0 3px 10px rgba(0,0,0,0.1); margin-bottom: 20px;}
+        .main-content {display: flex; width: 90%; justify-content: space-between; flex-wrap: wrap;}
+        .materials-list {flex: 1; min-width:60%; display:flex; flex-wrap: wrap;}
+        .dashboard-card {background:white; padding:20px; margin:10px; border-radius:12px; box-shadow:0 3px 10px rgba(0,0,0,0.1); width:240px;}
+        #adminPanel {align-self:flex-end; margin-top:20px;}
+        .stats-card {background:white; padding:15px; margin-top:20px; width:90%; border-radius:10px; box-shadow:0 3px 10px rgba(0,0,0,0.1);}
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1>Machakos University Study Zone</h1>
+    <button id="loginNavBtn" onclick="showAuth()">Login</button>
+</div>
+
+<!-- LOGIN/REGISTER -->
+<div class="container" id="authContainer">
+    <div class="card">
+        <h2 id="formTitle">Login</h2>
+        <div id="loginForm">
+            <input id="loginInput" placeholder="Email or Phone"><br>
+            <input id="loginPassword" type="password" placeholder="Password"><br>
+            <button class="submitBtn" onclick="login()">Login</button>
+            <p>Don't have an account? <a href="#" onclick="showRegister()">Create one</a></p>
+        </div>
+        <div id="registerForm" class="hidden">
+            <input id="regFirstName" placeholder="First Name"><br>
+            <input id="regLastName" placeholder="Last Name"><br>
+            <input id="regPhone" placeholder="Phone Number"><br>
+            <input id="regEmail" placeholder="Email"><br>
+            <input id="regPassword" type="password" placeholder="Password"><br>
+            <button class="submitBtn" onclick="register()">Create Account</button>
+            <p>Already have an account? <a href="#" onclick="showLogin()">Back to Login</a></p>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden">
+
+    <!-- Welcome Section -->
+    <div class="welcome">
+        <h2 id="greeting"></h2>
+        <p id="datetime"></p>
+        <p id="userInfo"></p>
+    </div>
+
+    <!-- Available Materials Section -->
+    <div class="dashboard-card" style="width:90%; margin-bottom:15px;">
+        <h3>Available Materials</h3>
+        <div id="availableMaterials"></div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-card">
+        <h3>Search Materials</h3>
+        <input id="searchInput" placeholder="Search materials">
+        <button onclick="searchMaterials()">Search</button>
+        <div id="searchResults"></div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="materials-list" id="materialsList"></div>
+
+        <!-- Admin Panel at bottom-right -->
+        <div class="dashboard-card hidden" id="adminPanel">
+            <h3>Admin - Add Learning Material</h3>
+            <input type="text" id="materialTitle" placeholder="Material Title"><br><br>
+            <input type="file" id="materialFile" multiple><br><br>
+            <button class="submitBtn" onclick="addFileMaterial()">Add Material</button>
+        </div>
+    </div>
+
+    <!-- User Comments Section -->
+    <div class="dashboard-card" style="width:90%; margin-top:20px;">
+        <h3>Leave a Comment</h3>
+        <textarea id="userComment" placeholder="Your comment..." style="width:95%; height:80px;"></textarea><br><br>
+        <button class="submitBtn" onclick="addComment()">Submit Comment</button>
+        <div id="commentsList" style="margin-top:15px;"></div>
+    </div>
+
+    <!-- Usage Statistics -->
+    <div class="stats-card">
+        <h3>Website Usage Stats</h3>
+        <p id="userCount">Total Users: 0</p>
+        <p id="userNames">Users: </p>
+        <p id="popularMaterials">Most Accessed Materials: </p>
+    </div>
+
+    <button class="submitBtn" onclick="logout()">Logout</button>
+</div>
+
+<script>
+// ======== DATA STORAGE =========
+let users = JSON.parse(localStorage.getItem("users")) || {};
+let materials = JSON.parse(localStorage.getItem("materials")) || [];
+let comments = JSON.parse(localStorage.getItem("comments")) || [];
+let materialUsage = JSON.parse(localStorage.getItem("materialUsage")) || {}; // track downloads/views
+
+// ======== FORCE ADMIN ACCOUNT ========
+users["katanachris756@gmail.com"] = {
+    firstName:"Admin",
+    lastName:"",
+    phone:"0795080327",
+    email:"katanachris756@gmail.com",
+    password:"bainab001#",
+    isAdmin:true
+};
+localStorage.setItem("users", JSON.stringify(users));
+
+let currentUser = null;
+
+// ======== AUTH FUNCTIONS =========
+function showRegister(){document.getElementById("loginForm").classList.add("hidden"); document.getElementById("registerForm").classList.remove("hidden"); document.getElementById("formTitle").innerText = "Create Account";}
+function showLogin(){document.getElementById("registerForm").classList.add("hidden"); document.getElementById("loginForm").classList.remove("hidden"); document.getElementById("formTitle").innerText = "Login";}
+function showAuth(){document.getElementById("dashboard").classList.add("hidden"); document.getElementById("authContainer").classList.remove("hidden");}
+
+// REGISTER
+function register(){
+    let firstName = document.getElementById("regFirstName").value;
+    let lastName = document.getElementById("regLastName").value;
+    let phone = document.getElementById("regPhone").value;
+    let email = document.getElementById("regEmail").value;
+    let password = document.getElementById("regPassword").value;
+    if(!firstName||!lastName||!phone||!email||!password){ alert("Fill all fields"); return;}
+    if(users[email]){ alert("User already exists"); return;}
+    users[email]={firstName,lastName,phone,email,password,isAdmin:false};
+    localStorage.setItem("users",JSON.stringify(users));
+    alert("Account created! You can now log in.");
+    showLogin();
+}
+
+// LOGIN
+function login(){
+    let input = document.getElementById("loginInput").value;
+    let password = document.getElementById("loginPassword").value;
+    let found = null;
+    for(let email in users){ let u=users[email]; if(u.email===input||u.phone===input){found=u; break;}}
+    if(!found||found.password!==password){alert("Invalid credentials"); return;}
+    currentUser=found;
+    document.getElementById("authContainer").classList.add("hidden");
+    document.getElementById("dashboard").classList.remove("hidden");
+    document.getElementById("greeting").innerText="Welcome "+found.firstName+"!";
+    document.getElementById("userInfo").innerText="Email: "+found.email+" | Phone: "+found.phone;
+    updateTime();
+    setInterval(updateTime,1000);
+    if(found.isAdmin){document.getElementById("adminPanel").classList.remove("hidden");}
+
+    // Update statistics
+    if(!found.isAdmin){ // Admin not counted as a regular user
+        if(!materialUsage.users) materialUsage.users = {};
+        if(!materialUsage.users[found.email]){
+            materialUsage.users[found.email]=found.firstName;
+            localStorage.setItem("materialUsage", JSON.stringify(materialUsage));
+        }
+    }
+
+    displayMaterials();
+    displayAvailableMaterials();
+    displayComments();
+    updateStats();
+}
+
+// TIME
+function updateTime(){document.getElementById("datetime").innerText="Current Time: "+new Date().toLocaleString();}
+
+// LOGOUT
+function logout(){currentUser=null; document.getElementById("dashboard").classList.add("hidden"); document.getElementById("authContainer").classList.remove("hidden"); document.getElementById("adminPanel").classList.add("hidden");}
+
+// ======= ADMIN ADD MATERIAL =========
+function addFileMaterial(){
+    let title = document.getElementById("materialTitle").value;
+    let files = document.getElementById("materialFile").files;
+
+    if(!title || files.length === 0){
+        alert("Please provide a title and select file(s).");
+        return;
+    }
+
+    for(let i=0; i<files.length; i++){
+        let file = files[i];
+        let reader = new FileReader();
+
+        reader.onload = function(e){
+            let content = e.target.result; // Base64
+            materials.push({title: title, name: file.name, content: content, type: file.type});
+            localStorage.setItem("materials", JSON.stringify(materials));
+
+            // initialize usage count
+            materialUsage[file.name]=0;
+            localStorage.setItem("materialUsage", JSON.stringify(materialUsage));
+
+            displayMaterials();
+            displayAvailableMaterials();
+            updateStats();
+        }
+
+        reader.readAsDataURL(file);
+    }
+
+    document.getElementById("materialTitle").value = "";
+    document.getElementById("materialFile").value = "";
+}
+
+// ======= DISPLAY MATERIALS =========
+function displayMaterials(){
+    let div = document.getElementById("materialsList");
+    div.innerHTML = "";
+
+    materials.forEach(m => {
+        let contentHtml = `<a href="${m.content}" download="${m.name}" onclick="incrementUsage('${m.name}')" style="display:block; margin-top:5px;">📥 Download ${m.name}</a>`;
+        if(m.type.startsWith("image/")){
+            contentHtml = `<img src="${m.content}" style="width:100%; border-radius:8px;">` + contentHtml;
+        } else if(m.type === "application/pdf"){
+            contentHtml = `<a href="${m.content}" target="_blank">📄 View ${m.name}</a>` + contentHtml;
+        }
+        div.innerHTML += `<div class="dashboard-card"><h4>${m.title}</h4>${contentHtml}</div>`;
+    });
+}
+
+// ======= DISPLAY AVAILABLE MATERIALS =========
+function displayAvailableMaterials(){
+    let div = document.getElementById("availableMaterials");
+    div.innerHTML = "";
+    if(materials.length === 0){ div.innerHTML = "<p>No materials available.</p>"; return; }
+
+    materials.forEach(m => {
+        let contentHtml = `<a href="${m.content}" download="${m.name}" onclick="incrementUsage('${m.name}')" style="display:block; margin-top:5px;">📥 Download ${m.name}</a>`;
+        if(m.type.startsWith("image/")){
+            contentHtml = `<img src="${m.content}" style="width:100%; border-radius:8px;">` + contentHtml;
+        } else if(m.type === "application/pdf"){
+            contentHtml = `<a href="${m.content}" target="_blank">📄 View ${m.name}</a>` + contentHtml;
+        }
+        div.innerHTML += `<div class="dashboard-card" style="margin-bottom:10px;"><h4>${m.title}</h4>${contentHtml}</div>`;
+    });
+}
+
+// ======= INCREMENT MATERIAL USAGE =========
+function incrementUsage(name){
+    if(!materialUsage[name]) materialUsage[name]=0;
+    materialUsage[name]++;
+    localStorage.setItem("materialUsage", JSON.stringify(materialUsage));
+    updateStats();
+}
+
+// ======= SEARCH =========
+function searchMaterials(){
+    let query=document.getElementById("searchInput").value.toLowerCase();
+    let results=materials.filter(m=>m.title.toLowerCase().includes(query)||m.name.toLowerCase().includes(query));
+    let div=document.getElementById("searchResults");
+    if(results.length===0){div.innerHTML="<p>No materials found</p>"; return;}
+    div.innerHTML="";
+    results.forEach(m=>{ 
+        let contentHtml = `<a href="${m.content}" download="${m.name}" onclick="incrementUsage('${m.name}')" style="display:block; margin-top:5px;">📥 Download ${m.name}</a>`;
+        if(m.type.startsWith("image/")){
+            contentHtml = `<img src="${m.content}" style="width:100%; border-radius:8px;">` + contentHtml;
+        } else if(m.type === "application/pdf"){
+            contentHtml = `<a href="${m.content}" target="_blank">📄 View ${m.name}</a>` + contentHtml;
+        }
+        div.innerHTML += `<div class="dashboard-card"><h4>${m.title}</h4>${contentHtml}</div>`;
+    });
+}
+
+// ======= COMMENTS =========
+function addComment(){
+    let text = document.getElementById("userComment").value.trim();
+    if(!text){ alert("Please write a comment."); return; }
+
+    let userName = currentUser ? currentUser.firstName : "Guest";
+    comments.push({user: userName, text: text, date: new Date().toLocaleString()});
+    localStorage.setItem("comments", JSON.stringify(comments));
+
+    document.getElementById("userComment").value = "";
+    displayComments();
+}
+
+function displayComments(){
+    let div = document.getElementById("commentsList");
+    div.innerHTML = "";
+    comments.forEach(c=>{
+        div.innerHTML += `<div style="padding:8px; border-bottom:1px solid #ccc;">
+            <strong>${c.user}</strong> (${c.date}): <br>${c.text}</div>`;
+    });
+}
+
+// ======= UPDATE STATISTICS =========
+function updateStats(){
+    let userKeys = materialUsage.users ? Object.keys(materialUsage.users) : [];
+    document.getElementById("userCount").innerText = "Total Users: " + userKeys.length;
+    document.getElementById("userNames").innerText = "Users: " + (userKeys.map(k=>materialUsage.users[k]).join(", ") || "None");
+
+    // Find top materials
+    let usageArray = [];
+    for(let name in materialUsage){
+        if(name!=="users") usageArray.push({name: name, count: materialUsage[name]});
+    }
+    usageArray.sort((a,b)=>b.count - a.count);
+    let topMaterials = usageArray.slice(0,5).map(m=>`${m.name} (${m.count})`).join(", ");
+    document.getElementById("popularMaterials").innerText = "Most Accessed Materials: " + (topMaterials || "None");
+}
+</script>
+
+</body>
+</html>
